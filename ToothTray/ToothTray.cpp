@@ -57,7 +57,7 @@ static int QueryBattery(HANDLE handle) { for (int attempt = 0; attempt < 4; ++at
 static int ReadBatteryOnce() {
     GUID guid = {}; HidD_GetHidGuid(&guid); HDEVINFO deviceSet = SetupDiGetClassDevsW(&guid, nullptr, nullptr, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE); if (deviceSet == INVALID_HANDLE_VALUE) return -1; int level = -1;
     for (DWORD index = 0; ; ++index) { SP_DEVICE_INTERFACE_DATA interfaceData = { sizeof(interfaceData) }; if (!SetupDiEnumDeviceInterfaces(deviceSet, nullptr, &guid, index, &interfaceData)) break; DWORD bytes = 0; SetupDiGetDeviceInterfaceDetailW(deviceSet, &interfaceData, nullptr, 0, &bytes, nullptr); std::vector<BYTE> buffer(bytes); SP_DEVICE_INTERFACE_DETAIL_DATA_W* detail = reinterpret_cast<SP_DEVICE_INTERFACE_DETAIL_DATA_W*>(buffer.data()); detail->cbSize = sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA_W); if (!SetupDiGetDeviceInterfaceDetailW(deviceSet, &interfaceData, detail, bytes, nullptr, nullptr)) continue; HANDLE handle = CreateFileW(detail->DevicePath, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, 0, nullptr); if (handle == INVALID_HANDLE_VALUE) continue;
-        HIDD_ATTRIBUTES attributes = { sizeof(attributes) }; if (HidD_GetAttributes(handle, &attributes) && attributes.VendorID == 0x260d && attributes.ProductID == 0x0042) { PHIDP_PREPARSED_DATA preparsed = nullptr; HIDP_CAPS caps = {}; if (HidD_GetPreparsedData(handle, &preparsed)) { HidP_GetCaps(preparsed, &caps); HidD_FreePreparsedData(preparsed); if (caps.FeatureReportByteLength == 65) level = QueryBattery(handle); } } CloseHandle(handle); if (level >= 0) break; }
+        HIDD_ATTRIBUTES attributes = { sizeof(attributes) }; if (HidD_GetAttributes(handle, &attributes) && attributes.VendorID == 0x260d && attributes.ProductID == 0x0042) { level = QueryBattery(handle); } CloseHandle(handle); if (level >= 0) break; }
     SetupDiDestroyDeviceInfoList(deviceSet); return level;
 }
 static int ReadBattery() { for (int attempt = 0; attempt < 12; ++attempt) { int level = ReadBatteryOnce(); if (level >= 0) return level; std::this_thread::sleep_for(std::chrono::seconds(1)); } return -1; }
@@ -200,7 +200,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 ShowExitMenu(hWnd);
                 break;
             }
-            if (event == WM_LBUTTONUP || event == NIN_SELECT || event == NIN_KEYSELECT) {
+            if (event == NIN_SELECT || event == NIN_KEYSELECT) {
                 std::vector<BluetoothConnector> connectors = bluetoothAudioDeviceEmumerator.EnumerateAudioDevices();
                 trayMenu.BuildMenu(connectors);
                 trayMenu.ShowPopupMenu(hWnd, wParam);
