@@ -104,7 +104,12 @@ static HICON CreateBatteryIcon(const std::wstring& text)
     HBITMAP mask = CreateBitmap(size, size, 1, 1, nullptr);
     HDC maskDc = CreateCompatibleDC(nullptr);
     HGDIOBJ oldMask = SelectObject(maskDc, mask);
+    // White is transparent in an icon mask; make only the drawn digits opaque.
     PatBlt(maskDc, 0, 0, size, size, WHITENESS);
+    for (int y = 0; y < size; ++y)
+        for (int x = 0; x < size; ++x)
+            if ((pixels[y * size + x] & 0x00ffffff) != 0)
+                SetPixelV(maskDc, x, y, RGB(0, 0, 0));
     SelectObject(maskDc, oldMask); DeleteDC(maskDc);
 
     ICONINFO iconInfo = {}; iconInfo.fIcon = TRUE; iconInfo.hbmMask = mask; iconInfo.hbmColor = color;
