@@ -1,0 +1,27 @@
+name: Build ToothTray
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'ToothTray/**'
+      - '.github/workflows/build.yml'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Restore NuGet packages
+        run: nuget restore ToothTray.sln
+      - name: Build release executable
+        uses: microsoft/setup-msbuild@v2
+      - name: Compile x64 release
+        run: msbuild ToothTray.sln /m /p:Configuration=Release /p:Platform=x64
+      - name: Upload executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: ToothTray-x64
+          path: x64/Release/ToothTray.exe
+          if-no-files-found: error
