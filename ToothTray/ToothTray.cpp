@@ -104,7 +104,7 @@ static HICON CreateBatteryIcon(const std::wstring& text)
     HBITMAP mask = CreateBitmap(size, size, 1, 1, nullptr);
     HDC maskDc = CreateCompatibleDC(nullptr);
     HGDIOBJ oldMask = SelectObject(maskDc, mask);
-    PatBlt(maskDc, 0, 0, size, size, BLACKNESS);
+    PatBlt(maskDc, 0, 0, size, size, WHITENESS);
     SelectObject(maskDc, oldMask); DeleteDC(maskDc);
 
     ICONINFO iconInfo = {}; iconInfo.fIcon = TRUE; iconInfo.hbmMask = mask; iconInfo.hbmColor = color;
@@ -125,13 +125,13 @@ static int ReadBattery() { for (int attempt = 0; attempt < 12; ++attempt) { int 
 static std::wstring TimeText() { SYSTEMTIME now = {}; GetLocalTime(&now); wchar_t text[32] = {}; StringCchPrintfW(text, ARRAYSIZE(text), L"%04u-%02u-%02u %02u:%02u:%02u", now.wYear, now.wMonth, now.wDay, now.wHour, now.wMinute, now.wSecond); return text; }
 static bool LoadBatteryCache(int& level, std::wstring& time) { std::wifstream input(BatteryCachePath()); std::wstring number; std::getline(input, number); std::getline(input, time); level = _wtoi(number.c_str()); return level >= 0 && level <= 100 && !time.empty(); }
 static void SaveBatteryCache(int level, const std::wstring& time) { std::wofstream output(BatteryCachePath(), std::ios::trunc); output << level << L"\n" << time; }
-static void ShowBattery(int level, const std::wstring& time, bool cached, const wchar_t* suffix) { wchar_t tip[128] = {}; StringCchPrintfW(tip, ARRAYSIZE(tip), L"EK75 电量：%d%%%s\n最后成功刷新：%s%s", level, cached ? L"（缓存）" : L"", time.c_str(), suffix ? suffix : L""); HICON icon = CreateBatteryIcon(level < 10 ? L"0" + std::to_wstring(level) : std::to_wstring(level)); trayIcon.Update(icon, tip); DestroyIcon(icon); }
+static void ShowBattery(int level, const std::wstring& time, bool cached, const wchar_t* suffix) { wchar_t tip[128] = {}; StringCchPrintfW(tip, ARRAYSIZE(tip), L"EK75 \u7535\u91cf\uff1a%d%%%s\n\u6700\u540e\u6210\u529f\u5237\u65b0\uff1a%s%s", level, cached ? L"（缓存）" : L"", time.c_str(), suffix ? suffix : L""); HICON icon = CreateBatteryIcon(level < 10 ? L"0" + std::to_wstring(level) : std::to_wstring(level)); trayIcon.Update(icon, tip); DestroyIcon(icon); }
 static void ApplyBatteryResult() {
     int level = -1; std::wstring time;
     { std::lock_guard<std::mutex> lock(batteryResultMutex); level = pendingBatteryLevel; time = pendingBatteryTime; }
     if (level >= 0) { SaveBatteryCache(level, time); ShowBattery(level, time, false, nullptr); return; }
-    if (LoadBatteryCache(level, time)) ShowBattery(level, time, true, L"\n查询失败，显示缓存");
-    else { HICON icon = CreateBatteryIcon(L"!"); trayIcon.Update(icon, L"EK75 电量：暂时无法读取"); DestroyIcon(icon); }
+    if (LoadBatteryCache(level, time)) ShowBattery(level, time, true, L"\n\u67e5\u8be2\u5931\u8d25\uff0c\u663e\u793a\u7f13\u5b58");
+    else { HICON icon = CreateBatteryIcon(L"!"); trayIcon.Update(icon, L"EK75 \u7535\u91cf\uff1a\u6682\u65f6\u65e0\u6cd5\u8bfb\u53d6"); DestroyIcon(icon); }
 }
 static void RefreshBatteryAsync(HWND window) {
     if (batteryReadInProgress.exchange(true)) return;
@@ -143,8 +143,8 @@ static void RefreshBatteryAsync(HWND window) {
 }
 static void ShowStartupBattery() {
     int level = -1; std::wstring time;
-    if (LoadBatteryCache(level, time)) ShowBattery(level, time, true, L"\n后台刷新中");
-    else { HICON icon = CreateBatteryIcon(L"--"); trayIcon.Update(icon, L"EK75 电量：正在后台读取"); DestroyIcon(icon); }
+    if (LoadBatteryCache(level, time)) ShowBattery(level, time, true, L"\n\u540e\u53f0\u5237\u65b0\u4e2d");
+    else { HICON icon = CreateBatteryIcon(L"--"); trayIcon.Update(icon, L"EK75 \u7535\u91cf\uff1a\u6b63\u5728\u540e\u53f0\u8bfb\u53d6"); DestroyIcon(icon); }
 }
 static void ShowExitMenu(HWND window) { POINT point = {}; GetCursorPos(&point); HMENU menu = CreatePopupMenu(); AppendMenuW(menu, MF_STRING, IDM_EXIT, L"Exit"); SetForegroundWindow(window); TrackPopupMenuEx(menu, TPM_LEFTALIGN | TPM_BOTTOMALIGN | TPM_LEFTBUTTON, point.x, point.y, window, nullptr); DestroyMenu(menu); }
 
