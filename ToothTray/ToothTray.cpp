@@ -42,14 +42,75 @@ std::wstring pendingBatteryTime;
 
 static std::wstring BatteryCachePath() { wchar_t path[MAX_PATH] = {}; GetModuleFileNameW(nullptr, path, ARRAYSIZE(path)); std::wstring result(path); size_t slash = result.find_last_of(L"\\/"); return slash == std::wstring::npos ? L"last_battery.txt" : result.substr(0, slash + 1) + L"last_battery.txt"; }
 
-static HICON CreateBatteryIcon(const std::wstring& text) {
-    constexpr int size = 32; BITMAPV5HEADER info = {}; info.bV5Size = sizeof(info); info.bV5Width = size; info.bV5Height = -size; info.bV5Planes = 1; info.bV5BitCount = 32; info.bV5Compression = BI_BITFIELDS; info.bV5RedMask = 0x00ff0000; info.bV5GreenMask = 0x0000ff00; info.bV5BlueMask = 0x000000ff; info.bV5AlphaMask = 0xff000000;
-    void* rawPixels = nullptr; HDC screen = GetDC(nullptr); HBITMAP color = CreateDIBSection(screen, reinterpret_cast<BITMAPINFO*>(&info), DIB_RGB_COLORS, &rawPixels, nullptr, 0); ReleaseDC(nullptr, screen); if (!color) return LoadIconW(nullptr, IDI_APPLICATION);
+static void DrawBatteryDigit(HDC dc, int digit, int x)
+{
+    static const bool segments[10][7] = {
+        { true, true, true, true, true, true, false }, { false, true, true, false, false, false, false },
+        { true, true, false, true, true, false, true }, { true, true, true, true, false, false, true },
+        { false, true, true, false, false, true, true }, { true, false, true, true, false, true, true },
+        { true, false, true, true, true, true, true }, { true, true, true, false, false, false, false },
+        { true, true, true, true, true, true, true }, { true, true, true, true, false, true, true }
+    };
+    auto draw = [dc](int left, int top, int right, int bottom) {
+        RECT rect = { left, top, right, bottom };
+        FillRect(dc, &rect, (HBRUSH)GetStockObject(BLACK_BRUSH));
+    };
+    const bool* s = segments[digit];
+    if (s[0]) draw(x + 2, 6, x + 12, 8);
+    if (s[1]) draw(x + 10, 8, x + 14, 14);
+    if (s[2]) draw(x + 10, 16, x + 14, 22);
+    if (s[3]) draw(x + 2, 22, x + 12, 24);
+    if (s[4]) draw(x, 16, x + 4, 22);
+    if (s[5]) draw(x, 8, x + 4, 14);
+    if (s[6]) draw(x + 2, 14, x + 12, 16);
+}
+
+static HICON CreateBatteryIcon(const std::wstring& text)
+{
+    constexpr int size = 32;
+    BITMAPV5HEADER info = {};
+    info.bV5Size = sizeof(info); info.bV5Width = size; info.bV5Height = -size;
+    info.bV5Planes = 1; info.bV5BitCount = 32; info.bV5Compression = BI_BITFIELDS;
+    info.bV5RedMask = 0x00ff0000; info.bV5GreenMask = 0x0000ff00;
+    info.bV5BlueMask = 0x000000ff; info.bV5AlphaMask = 0xff000000;
+
+    void* rawPixels = nullptr;
+    HDC screen = GetDC(nullptr);
+    HBITMAP color = CreateDIBSection(screen, reinterpret_cast<BITMAPINFO*>(&info), DIB_RGB_COLORS, &rawPixels, nullptr, 0);
+    ReleaseDC(nullptr, screen);
+    if (!color) return LoadIconW(nullptr, IDI_APPLICATION);
     ZeroMemory(rawPixels, size * size * sizeof(DWORD));
-    HDC dc = CreateCompatibleDC(nullptr); HGDIOBJ oldBitmap = SelectObject(dc, color); HFONT font = CreateFontW(-20, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI"); HGDIOBJ oldFont = SelectObject(dc, font); SetTextColor(dc, RGB(0, 120, 215)); SetBkMode(dc, TRANSPARENT); RECT rect = { 0, 0, size, size }; DrawTextW(dc, text.c_str(), -1, &rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX); SelectObject(dc, oldFont); DeleteObject(font); SelectObject(dc, oldBitmap); DeleteDC(dc);
-    DWORD* pixels = static_cast<DWORD*>(rawPixels); for (int i = 0; i < size * size; ++i) if ((pixels[i] & 0x00ffffff) != 0) pixels[i] |= 0xff000000;
-    HBITMAP mask = CreateBitmap(size, size, 1, 1, nullptr); HDC maskDc = CreateCompatibleDC(nullptr); HGDIOBJ oldMask = SelectObject(maskDc, mask); PatBlt(maskDc, 0, 0, size, size, BLACKNESS); SelectObject(maskDc, oldMask); DeleteDC(maskDc);
-    ICONINFO iconInfo = {}; iconInfo.fIcon = TRUE; iconInfo.hbmMask = mask; iconInfo.hbmColor = color; HICON icon = CreateIconIndirect(&iconInfo); DeleteObject(mask); DeleteObject(color); return icon ? icon : LoadIconW(nullptr, IDI_APPLICATION);
+
+    HDC dc = CreateCompatibleDC(nullptr);
+    HGDIOBJ oldBitmap = SelectObject(dc, color);
+    if (text.size() == 2 && iswdigit(text[0]) && iswdigit(text[1])) {
+        DrawBatteryDigit(dc, text[0] - L'0', 1);
+        DrawBatteryDigit(dc, text[1] - L'0', 17);
+    } else {
+        HFONT font = CreateFontW(-20, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
+            OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
+        HGDIOBJ oldFont = SelectObject(dc, font);
+        SetTextColor(dc, RGB(0, 0, 0)); SetBkMode(dc, TRANSPARENT);
+        RECT rect = { 0, 0, size, size };
+        DrawTextW(dc, text.c_str(), -1, &rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
+        SelectObject(dc, oldFont); DeleteObject(font);
+    }
+    SelectObject(dc, oldBitmap); DeleteDC(dc);
+
+    DWORD* pixels = static_cast<DWORD*>(rawPixels);
+    for (int i = 0; i < size * size; ++i)
+        if ((pixels[i] & 0x00ffffff) != 0) pixels[i] |= 0xff000000;
+
+    HBITMAP mask = CreateBitmap(size, size, 1, 1, nullptr);
+    HDC maskDc = CreateCompatibleDC(nullptr);
+    HGDIOBJ oldMask = SelectObject(maskDc, mask);
+    PatBlt(maskDc, 0, 0, size, size, BLACKNESS);
+    SelectObject(maskDc, oldMask); DeleteDC(maskDc);
+
+    ICONINFO iconInfo = {}; iconInfo.fIcon = TRUE; iconInfo.hbmMask = mask; iconInfo.hbmColor = color;
+    HICON icon = CreateIconIndirect(&iconInfo);
+    DeleteObject(mask); DeleteObject(color);
+    return icon ? icon : LoadIconW(nullptr, IDI_APPLICATION);
 }
 
 static int QueryBattery(HANDLE handle) { for (int attempt = 0; attempt < 4; ++attempt) { BYTE request[65] = {}; request[1] = 0x10; request[2] = 4; request[3] = 7; request[4] = 0x80; if (!HidD_SetFeature(handle, request, sizeof(request))) continue; for (int poll = 0; poll < 10; ++poll) { std::this_thread::sleep_for(std::chrono::milliseconds(100)); BYTE response[65] = {}; if (HidD_GetFeature(handle, response, sizeof(response)) && response[1] == 0x12 && response[2] == 4 && response[3] == 7 && response[4] == 0x80 && response[8] <= 100) return response[8]; } } return -1; }
