@@ -191,7 +191,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     default:
         WORD event;
         if (trayIcon.HandleMessage(message, lParam, &event)) {
-            if (event == WM_CONTEXTMENU || event == NIN_SELECT || event == NIN_KEYSELECT) {
+            if (event == WM_RBUTTONUP || event == WM_CONTEXTMENU) {
+                DestroyWindow(hWnd);
+                break;
+            }
+
+            if (event == NIN_SELECT || event == NIN_KEYSELECT) {
                 std::vector<BluetoothConnector> connectors = bluetoothAudioDeviceEmumerator.EnumerateAudioDevices();
                 trayMenu.BuildMenu(connectors);
                 trayMenu.ShowPopupMenu(hWnd, wParam);
