@@ -1,7 +1,6 @@
 #include "ToothTrayMenu.h"
 
 #include <unordered_map>
-#include <windowsx.h>
 
 #include "debuglog.h"
 
@@ -16,28 +15,23 @@ void ToothTrayMenu::BuildMenu(std::vector<BluetoothConnector>& connectors) {
             m_menuData.emplace(std::piecewise_construct, std::forward_as_tuple(currentMenuItemId), std::forward_as_tuple(currentMenuItemId, std::move(*ite)));
 
         LPWSTR deviceName = (*(pair.first)).second.menuText.data();
-
         bool checked = (*(pair.first)).second.pConnector.IsConnected();
 
         DebugLogl(DebugLogStream{} << L"Showing device: " << deviceName << L", connected: " << checked);
-
         InsertBluetoohConnectorMenuItem(currentMenuItemId, menuPosition, deviceName, checked);
     }
 
     InsertBluetoohConnectorMenuItem(IDM_EXIT, menuPosition, (WCHAR*)L"Exit", false);
 }
 
-void ToothTrayMenu::ShowPopupMenu(HWND hwnd, WPARAM mousPosWParam) {
-    int x = GET_X_LPARAM(mousPosWParam);
-    int y = GET_Y_LPARAM(mousPosWParam);
+void ToothTrayMenu::ShowPopupMenu(HWND hwnd, WPARAM) {
+    POINT cursor = {};
+    if (!GetCursorPos(&cursor))
+        return;
 
-    // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-trackpopupmenuex
-    // To display a context menu for a notification icon, the current window must be the foreground window before the application calls TrackPopupMenu or TrackPopupMenuEx.
-    // Otherwise, the menu will not disappear when the user clicks outside of the menu or the window that created the menu (if it is visible).
-    // If the current window is a child window, you must set the (top-level) parent window as the foreground window.
     SetForegroundWindow(hwnd);
-
-    TrackPopupMenuEx(m_handle.get(), TPM_LEFTALIGN | TPM_BOTTOMALIGN | TPM_LEFTBUTTON, x, y, hwnd, NULL);
+    TrackPopupMenuEx(m_handle.get(), TPM_LEFTALIGN | TPM_BOTTOMALIGN | TPM_LEFTBUTTON,
+        cursor.x, cursor.y, hwnd, NULL);
 }
 
 bool ToothTrayMenu::TryHandleCommand(int commandId) {
