@@ -10,6 +10,7 @@
 #include <fstream>
 #include <sstream>
 #include <thread>
+#include <chrono>
 #include <vector>
 
 #pragma comment(lib, "hid.lib")
