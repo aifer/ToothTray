@@ -79,7 +79,8 @@ static HICON CreateBatteryIcon(const std::wstring& text)
     HBITMAP color = CreateDIBSection(screen, reinterpret_cast<BITMAPINFO*>(&info), DIB_RGB_COLORS, &rawPixels, nullptr, 0);
     ReleaseDC(nullptr, screen);
     if (!color) return LoadIconW(nullptr, IDI_APPLICATION);
-    ZeroMemory(rawPixels, size * size * sizeof(DWORD));
+    DWORD* initialPixels = static_cast<DWORD*>(rawPixels);
+    for (int i = 0; i < size * size; ++i) initialPixels[i] = 0x00ffffff;
 
     HDC dc = CreateCompatibleDC(nullptr);
     HGDIOBJ oldBitmap = SelectObject(dc, color);
@@ -99,7 +100,7 @@ static HICON CreateBatteryIcon(const std::wstring& text)
 
     DWORD* pixels = static_cast<DWORD*>(rawPixels);
     for (int i = 0; i < size * size; ++i)
-        if ((pixels[i] & 0x00ffffff) != 0) pixels[i] |= 0xff000000;
+        if ((pixels[i] & 0x00ffffff) == 0) pixels[i] |= 0xff000000;
 
     HBITMAP mask = CreateBitmap(size, size, 1, 1, nullptr);
     HDC maskDc = CreateCompatibleDC(nullptr);
@@ -108,7 +109,7 @@ static HICON CreateBatteryIcon(const std::wstring& text)
     PatBlt(maskDc, 0, 0, size, size, WHITENESS);
     for (int y = 0; y < size; ++y)
         for (int x = 0; x < size; ++x)
-            if ((pixels[y * size + x] & 0x00ffffff) != 0)
+            if ((pixels[y * size + x] & 0x00ffffff) == 0)
                 SetPixelV(maskDc, x, y, RGB(0, 0, 0));
     SelectObject(maskDc, oldMask); DeleteDC(maskDc);
 
