@@ -20,8 +20,6 @@ void ToothTrayMenu::BuildMenu(std::vector<BluetoothConnector>& connectors) {
         DebugLogl(DebugLogStream{} << L"Showing device: " << deviceName << L", connected: " << checked);
         InsertBluetoohConnectorMenuItem(currentMenuItemId, menuPosition, deviceName, checked);
     }
-
-    InsertBluetoohConnectorMenuItem(IDM_EXIT, menuPosition, (WCHAR*)L"Exit", false);
 }
 
 void ToothTrayMenu::ShowPopupMenu(HWND hwnd, WPARAM) {
