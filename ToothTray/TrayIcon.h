@@ -44,7 +44,7 @@ public:
         notifyIconData.cbSize = sizeof(NOTIFYICONDATA);
         notifyIconData.hWnd = m_hWnd;
         notifyIconData.uID = m_iconId;
-        notifyIconData.uFlags = NIF_ICON | NIF_TIP;
+        notifyIconData.uFlags = NIF_ICON | NIF_TIP | NIF_SHOWTIP;
         notifyIconData.hIcon = newIcon;
         StringCchCopyW(notifyIconData.szTip, ARRAYSIZE(notifyIconData.szTip), tooltip);
 
