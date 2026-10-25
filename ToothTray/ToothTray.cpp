@@ -65,6 +65,29 @@ static void DrawBatteryDigit(HDC dc, int digit, int x)
     if (s[6]) draw(x + 2, 14, x + 12, 16);
 }
 
+static void DrawBatteryDigitCompact(HDC dc, int digit, int x)
+{
+    static const bool segments[10][7] = {
+        { true, true, true, true, true, true, false }, { false, true, true, false, false, false, false },
+        { true, true, false, true, true, false, true }, { true, true, true, true, false, false, true },
+        { false, true, true, false, false, true, true }, { true, false, true, true, false, true, true },
+        { true, false, true, true, true, true, true }, { true, true, true, false, false, false, false },
+        { true, true, true, true, true, true, true }, { true, true, true, true, false, true, true }
+    };
+    auto draw = [dc](int left, int top, int right, int bottom) {
+        RECT rect = { left, top, right, bottom };
+        FillRect(dc, &rect, (HBRUSH)GetStockObject(BLACK_BRUSH));
+    };
+    const bool* s = segments[digit];
+    if (s[0]) draw(x + 2, 6, x + 8, 8);
+    if (s[1]) draw(x + 7, 8, x + 10, 14);
+    if (s[2]) draw(x + 7, 16, x + 10, 22);
+    if (s[3]) draw(x + 2, 22, x + 8, 24);
+    if (s[4]) draw(x, 16, x + 3, 22);
+    if (s[5]) draw(x, 8, x + 3, 14);
+    if (s[6]) draw(x + 2, 14, x + 8, 16);
+}
+
 static HICON CreateBatteryIcon(const std::wstring& text)
 {
     constexpr int size = 32;
@@ -84,7 +107,11 @@ static HICON CreateBatteryIcon(const std::wstring& text)
 
     HDC dc = CreateCompatibleDC(nullptr);
     HGDIOBJ oldBitmap = SelectObject(dc, color);
-    if (text.size() == 2 && iswdigit(text[0]) && iswdigit(text[1])) {
+    if (text == L"100") {
+        DrawBatteryDigitCompact(dc, 1, 1);
+        DrawBatteryDigitCompact(dc, 0, 11);
+        DrawBatteryDigitCompact(dc, 0, 21);
+    } else if (text.size() == 2 && iswdigit(text[0]) && iswdigit(text[1])) {
         DrawBatteryDigit(dc, text[0] - L'0', 1);
         DrawBatteryDigit(dc, text[1] - L'0', 17);
     } else {
